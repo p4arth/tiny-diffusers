@@ -1,0 +1,1 @@
+An attempt of minimal code recreation of diffusion models
