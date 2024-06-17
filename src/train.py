@@ -5,8 +5,11 @@ from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 from torch.optim import Adam
 from tqdm import tqdm
-from diffuser import Diffuser
+
 from torch.utils.data import DataLoader
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from model.diffuser import Diffuser
 
 # DEVICE = device = "mps" if torch.backends.mps.is_available() else "cpu"
 DEVICE = "cpu"
@@ -46,18 +49,19 @@ def train(data, model, criterion, optimizer, denoise_steps, epochs, starting_epo
 
 
 if __name__ == "__main__":
-    load_pretrained = True
+    load_pretrained = False
     beta = 0.001
     batch_size = 256
     denoise_steps = 2000
     epochs = 5000
-    lr = 0.00001
+    lr = 0.0002
     
     x = DataLoader(MNIST(root = ".", download = True, transform = ToTensor()), batch_size = batch_size)
-    model = Diffuser(beta = beta, device = DEVICE).to(DEVICE)
+    model = Diffuser(beta = beta, max_t = denoise_steps, device = DEVICE).to(DEVICE)
     criterion = nn.MSELoss()
     optimizer = Adam(model.parameters(), lr = lr)
     
+    os.makedirs("pretrained", exist_ok=True)
     if load_pretrained:
         name = f"pretrained/latest_model.pth"
         state_dict = torch.load(name)

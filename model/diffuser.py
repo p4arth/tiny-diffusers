@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 class Diffuser(nn.Module):
-    def __init__(self, beta, in_channels = 28, out_channels = 28, device = "cpu"):
+    def __init__(self, beta, in_channels = 28, out_channels = 28, max_t = 2000, device = "cpu"):
         super().__init__()
         self.beta = beta
         self.alpha = 1 - beta
@@ -11,6 +11,11 @@ class Diffuser(nn.Module):
         self.in_feats = in_channels * in_channels
         self.out_feats = out_channels * out_channels
         self.out_feats = 784
+        self.max_denoise_steps = 2000
+        self.embedding = torch.nn.Embedding(
+            num_embeddings=self.max_denoise_steps,
+            embedding_dim=self.in_feats
+        )
         self.lin = nn.Sequential(
             nn.Linear(in_features = self.in_feats, out_features = 512),
             nn.SiLU(),
@@ -52,9 +57,20 @@ class Diffuser(nn.Module):
         if sampling:
             return self.lin(x)
         bs, c, h, w = x.shape
+
+        # Noise -> ShapeOf(original_image)
         eps = torch.normal(0, 1, x.shape).to(self.device)
+
+        # Coeff for noising
         alpha_t = (self.alpha ** t)
+
+        # Forward Process
         x_noisy = ((alpha_t ** 0.5) * x) + (((1 - alpha_t) ** 0.5) * eps)
         
-        e_theta = self.lin(x_noisy.view(bs, c, h * w))
+        # Time embedding
+        time_embedding = self.embedding(torch.LongTensor([t])).to(self.device)
+
+        # Into the model we go
+        e_theta = self.lin(x_noisy.view(bs, c, h * w) + time_embedding)
+
         return eps, e_theta.view(bs, c, h, w)

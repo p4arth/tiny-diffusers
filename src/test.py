@@ -1,7 +1,8 @@
 import torch
-from diffuser import Diffuser
-from utils import visualize_digit
-from utils import sample
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from model.diffuser import Diffuser
+from utils.utils import visualize_digit, sample
 
 beta = 0.001
 model = Diffuser(beta = beta)
