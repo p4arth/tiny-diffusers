@@ -29,14 +29,6 @@ class Diffuser(nn.Module):
             nn.SiLU(),
             nn.Linear(in_features = 2048, out_features = 2048),
             nn.SiLU(),
-            nn.Linear(in_features = 2048, out_features = 2048),
-            nn.SiLU(),
-            nn.Linear(in_features = 2048, out_features = 2048),
-            nn.SiLU(),
-            nn.Linear(in_features = 2048, out_features = 2048),
-            nn.SiLU(),
-            nn.Linear(in_features = 2048, out_features = 2048),
-            nn.SiLU(),
             nn.Linear(in_features = 2048, out_features = 1024),
             nn.SiLU(),
             nn.Linear(in_features = 1024, out_features = 512),
@@ -52,25 +44,29 @@ class Diffuser(nn.Module):
             if isinstance(m, nn.Linear):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.01)
+            if isinstance(m, nn.Embedding):
+                torch.nn.init.xavier_uniform_(m.weight)
 
     def forward(self, x, t = None, sampling = False):
-        if sampling:
-            return self.lin(x)
-        bs, c, h, w = x.shape
-
-        # Noise -> ShapeOf(original_image)
-        eps = torch.normal(0, 1, x.shape).to(self.device)
-
-        # Coeff for noising
-        alpha_t = (self.alpha ** t)
-
-        # Forward Process
-        x_noisy = ((alpha_t ** 0.5) * x) + (((1 - alpha_t) ** 0.5) * eps)
-        
         # Time embedding
+        # print(t * self.max_denoise_steps)
         time_embedding = self.embedding(torch.LongTensor([t])).to(self.device)
 
-        # Into the model we go
-        e_theta = self.lin(x_noisy.view(bs, c, h * w) + time_embedding)
+        if sampling:
+            return self.lin(x + time_embedding)
+        bs, c, h, w = x.shape
 
-        return eps, e_theta.view(bs, c, h, w)
+        # # Noise -> ShapeOf(original_image)
+        # eps = torch.normal(0, 1, x.shape).to(self.device)
+
+        # # Coeff for noising
+        # alpha_t = (self.alpha ** t)
+
+        # Forward Process
+        # x_noisy = ((alpha_t ** 0.5) * x) + (((1 - alpha_t) ** 0.5) * eps)
+        
+        
+        # Into the model we go
+        xt = self.lin(x.view(bs, c, h * w) + time_embedding)
+
+        return xt.view(bs, c, h, w)
