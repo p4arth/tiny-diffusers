@@ -1,21 +1,14 @@
 import torch
 from torch import nn
+from model.embedding import Embed
 
-class Diffuser(nn.Module):
-    def __init__(self, beta, in_channels = 28, out_channels = 28, max_t = 2000, device = "cpu"):
+class DiffusionNetwork(nn.Module):
+    def __init__(self, img_h = 28, img_w = 28):
         super().__init__()
-        self.beta = beta
-        self.alpha = 1 - beta
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.in_feats = in_channels * in_channels
-        self.out_feats = out_channels * out_channels
-        self.out_feats = 784
-        self.max_denoise_steps = 2000
-        self.embedding = torch.nn.Embedding(
-            num_embeddings=self.max_denoise_steps,
-            embedding_dim=self.in_feats
-        )
+        self.img_h = img_h
+        self.img_w = img_w
+        self.in_feats = img_h * img_w
+        self.out_feats = img_h * img_w
         self.lin = nn.Sequential(
             nn.Linear(in_features = self.in_feats, out_features = 512),
             nn.SiLU(),
@@ -36,7 +29,15 @@ class Diffuser(nn.Module):
             nn.Linear(in_features = 512, out_features = self.out_feats),
             nn.SiLU()
         )
-        self.device = device
+
+    def forward(self, x):
+        return self.lin(x)
+
+class Diffuser(nn.Module):
+    def __init__(self, img_h, img_w, max_denoise_steps):
+        super().__init__()
+        self.time_embed = Embed(max_denoise_steps = max_denoise_steps, in_feats = (img_h * img_w))
+        self.diffuser = DiffusionNetwork(img_h = img_h, img_w = img_w)
         self._init_weights()
 
     def _init_weights(self):
@@ -46,27 +47,8 @@ class Diffuser(nn.Module):
                 m.bias.data.fill_(0.01)
             if isinstance(m, nn.Embedding):
                 torch.nn.init.xavier_uniform_(m.weight)
-
-    def forward(self, x, t = None, sampling = False):
-        # Time embedding
-        # print(t * self.max_denoise_steps)
-        time_embedding = self.embedding(torch.LongTensor([t])).to(self.device)
-
-        if sampling:
-            return self.lin(x + time_embedding)
+    
+    def forward(self, x, t):
         bs, c, h, w = x.shape
-
-        # # Noise -> ShapeOf(original_image)
-        # eps = torch.normal(0, 1, x.shape).to(self.device)
-
-        # # Coeff for noising
-        # alpha_t = (self.alpha ** t)
-
-        # Forward Process
-        # x_noisy = ((alpha_t ** 0.5) * x) + (((1 - alpha_t) ** 0.5) * eps)
-        
-        
-        # Into the model we go
-        xt = self.lin(x.view(bs, c, h * w) + time_embedding)
-
-        return xt.view(bs, c, h, w)
+        x = self.diffuser(x.view(bs, c, h * w) + self.time_embed(t))
+        return x.view(bs, c, h, w)

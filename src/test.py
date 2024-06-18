@@ -5,7 +5,7 @@ from model.diffuser import Diffuser
 from utils.utils import visualize_digit, sample
 
 beta = 0.001
-model = Diffuser(beta = beta)
+model = Diffuser(img_h = 28, img_w = 28, max_denoise_steps=2000)
 state_dict = torch.load(f"pretrained/best_loss.pth")
 print("Best Epoch :", state_dict["epoch"])
 model.load_state_dict(state_dict["model"])
