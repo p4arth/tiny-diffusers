@@ -1,6 +1,7 @@
 import torch
 import sys, os
 import numpy as np
+import argparse
 from torch import nn
 from torch.optim import Adam
 from tqdm import tqdm
@@ -8,9 +9,17 @@ from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from model.diffuser import Diffuser
+
+
+parser = argparse.ArgumentParser(description='Denoising diffusion model training')
+parser.add_argument('--load_pretrained', action='store_true', help='Load pretrained model weights')
+parser.add_argument('--batch_size', type=int, default=256, help='Batch size for training')
+parser.add_argument('--max_denoise_steps', type=int, default=2000, help='Maximum number of denoising steps')
+parser.add_argument('--epochs', type=int, default=5000, help='Number of training epochs')
+parser.add_argument('--lr', type=float, default=0.0002, help='Learning rate')
+parser.add_argument('--sigma', type=float, default=1.0, help='Sigma value for Gaussian noise')
 
 DEVICE = "cpu"
 if torch.cuda.is_available():
@@ -65,12 +74,13 @@ def train(data, model, criterion, optimizer, denoise_steps, epochs, starting_epo
 
 
 if __name__ == "__main__":
-    load_pretrained = False
-    batch_size = 256
-    max_denoise_steps = 2000
-    epochs = 5000
-    lr = 0.0002
-    sigma =  1
+    args = vars(parser.parse_args())
+    load_pretrained = args.get("load_pretrained", False)
+    batch_size = args.get("batch_size", 256)
+    max_denoise_steps = args.get("max_denoise_steps", 2000)
+    epochs = args.get("epochs", 50)
+    lr = args.get("lr", 0.0002)
+    sigma = args.get("sigma", 1.0)
     
     x = DataLoader(MNIST(root = ".", download = True, transform = ToTensor()), batch_size = batch_size, shuffle=True)
     model = Diffuser(img_h = 28, img_w = 28, max_denoise_steps=max_denoise_steps).to(DEVICE)
