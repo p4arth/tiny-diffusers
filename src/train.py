@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from model.diffuser import Diffuser
 
-
 parser = argparse.ArgumentParser(description='Denoising diffusion model training')
 parser.add_argument('--load_pretrained', action='store_true', help='Load pretrained model weights')
 parser.add_argument('--batch_size', type=int, default=256, help='Batch size for training')
@@ -24,8 +23,8 @@ parser.add_argument('--sigma', type=float, default=1.0, help='Sigma value for Ga
 DEVICE = "cpu"
 if torch.cuda.is_available():
     DEVICE = "cuda"
-# if torch.backends.mps.is_available():
-#     DEVICE = "mps"
+if torch.backends.mps.is_available():
+    DEVICE = "mps"
 print(f"Running code on device : {DEVICE}")
 
 def train(data, model, criterion, optimizer, denoise_steps, epochs, starting_epoch, sigma):
@@ -40,12 +39,14 @@ def train(data, model, criterion, optimizer, denoise_steps, epochs, starting_epo
             t = torch.randint(0, denoise_steps, (1,))
             noise_xt = torch.tensor(
                 np.float32(np.random.normal(0, (sigma ** 2) * (t / (denoise_steps - 1)), x0.shape)), 
-                device=DEVICE
             )
             noise_xt_delta = torch.tensor(
                 np.float32(np.random.normal(0, (sigma ** 2) * (((t + 1) / (denoise_steps - 1))), x0.shape)),
-                device = DEVICE
             )
+            # Move to common device
+            noise_xt = noise_xt.to(DEVICE)
+            noise_xt_delta = noise_xt.to(DEVICE)
+            t = t.to(DEVICE)
             xt = x0 + noise_xt
             xt_delta = xt + noise_xt_delta
             xt_hat = model(xt_delta, t)
